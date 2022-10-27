@@ -98,7 +98,6 @@ def train(gpu, args):
                     loss.item())
                 )
             if (i + 1) % 500 == 0 and gpu == 0:
-                dist.barrier()
                 torch.save(model.state_dict(), 'model.pth')
     if gpu == 0:
         print("Training complete in: " + str(datetime.now() - start))
