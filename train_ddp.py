@@ -72,7 +72,8 @@ def train(gpu, args):
                                                num_workers=0,
                                                pin_memory=True,
                                                sampler=train_sampler)
-    print(len(train_dataset))
+    if gpu == 0:
+        print(len(train_dataset))
 
     start = datetime.now()
     total_step = len(train_loader)
@@ -96,6 +97,9 @@ def train(gpu, args):
                     total_step,
                     loss.item())
                 )
+            if (i + 1) % 500 == 0 and gpu == 0:
+                dist.barrier()
+                torch.save(model.state_dict(), 'model.pth')
     if gpu == 0:
         print("Training complete in: " + str(datetime.now() - start))
 
