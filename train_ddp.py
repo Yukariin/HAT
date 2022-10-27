@@ -50,7 +50,7 @@ def train(gpu, args):
                 mlp_ratio=2, upsampler='pixelshuffle', resi_connection='1conv')
     torch.cuda.set_device(gpu)
     model.cuda(gpu)
-    batch_size = 4
+    batch_size = 2
 
     # define loss function (criterion) and optimizer
     criterion = nn.L1Loss().cuda(gpu)
