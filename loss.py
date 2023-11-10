@@ -47,8 +47,6 @@ def create_window(window_size, channel):
 
 
 def _ssim(img1, img2, window, window_size, channel, size_average=True, full=False):
-    assert img1.shape == img2.shape, f'Image shapes are different: {img1.shape}, {img2.shape}.'
-    
     pad = window_size//2
 
     mu1 = F.conv2d(img1, window, padding=pad, groups=channel)
@@ -65,7 +63,8 @@ def _ssim(img1, img2, window, window_size, channel, size_average=True, full=Fals
     C1 = 0.01**2
     C2 = 0.03**2
 
-    ssim_map = ((2*mu1_mu2 + C1)*(2*sigma12 + C2)) / ((mu1_sq + mu2_sq + C1)*(sigma1_sq + sigma2_sq + C2))
+    cs_map = (2*sigma12 + C2) / (sigma1_sq + sigma2_sq + C2)
+    ssim_map = ((2*mu1_mu2 + C1) / (mu1_sq + mu2_sq + C1)) * cs_map
 
     if size_average:
         ret = ssim_map.mean()
@@ -73,9 +72,7 @@ def _ssim(img1, img2, window, window_size, channel, size_average=True, full=Fals
         ret = ssim_map.mean(1).mean(1).mean(1)
 
     if full:
-        v1 = 2*sigma12 + C2
-        v2 = sigma1_sq + sigma2_sq + C2
-        cs = torch.mean(v1 / v2)
+        cs = torch.mean(cs_map)
         return ret, cs
 
     return ret
@@ -91,6 +88,10 @@ class SSIM(nn.Module):
         self.window = create_window(window_size, self.channel)
 
     def forward(self, img1, img2, y_channel=False):
+        if y_channel:
+            img1 = rgb2ycbcr(img1, y_only=True)
+            img2 = rgb2ycbcr(img2, y_only=True)
+
         c = img1.size(1)
 
         if c == self.channel and self.window.data.type() == img1.data.type():
@@ -104,16 +105,16 @@ class SSIM(nn.Module):
 
             self.window = window
             self.channel = c
-        
-        if y_channel:
-            img1 = rgb2ycbcr(img1, y_only=True)
-            img2 = rgb2ycbcr(img2, y_only=True)
 
         return _ssim(img1, img2, window, self.window_size, c, self.size_average)
 
 
 def ssim(img1, img2, window_size=11, size_average=True, full=False, y_channel=False):
     assert img1.shape == img2.shape, f'Image shapes are different: {img1.shape}, {img2.shape}.'
+
+    if y_channel:
+        img1 = rgb2ycbcr(img1, y_only=True)
+        img2 = rgb2ycbcr(img2, y_only=True)
 
     _, c, h, w = img1.size()
 
@@ -124,21 +125,17 @@ def ssim(img1, img2, window_size=11, size_average=True, full=False, y_channel=Fa
         window = window.cuda(img1.get_device())
     window = window.type_as(img1)
 
-    if y_channel:
-        img1 = rgb2ycbcr(img1, y_only=True)
-        img2 = rgb2ycbcr(img2, y_only=True)
-
     return _ssim(img1, img2, window, real_size, c, size_average, full)
 
 
 def msssim(img1, img2, window_size=11, size_average=True, y_channel=False):
     assert img1.shape == img2.shape, f'Image shapes are different: {img1.shape}, {img2.shape}.'
 
-    weights = torch.Tensor([0.0448, 0.2856, 0.3001, 0.2363, 0.1333])
-
     if y_channel:
         img1 = rgb2ycbcr(img1, y_only=True)
         img2 = rgb2ycbcr(img2, y_only=True)
+
+    weights = torch.Tensor([0.0448, 0.2856, 0.3001, 0.2363, 0.1333])
 
     if img1.is_cuda:
         weights = weights.cuda(img1.get_device())
