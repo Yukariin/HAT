@@ -47,6 +47,8 @@ def create_window(window_size, channel):
 
 
 def _ssim(img1, img2, window, window_size, channel, size_average=True, full=False):
+    assert img1.shape == img2.shape, f'Image shapes are different: {img1.shape}, {img2.shape}.'
+    
     pad = window_size//2
 
     mu1 = F.conv2d(img1, window, padding=pad, groups=channel)
@@ -111,6 +113,8 @@ class SSIM(nn.Module):
 
 
 def ssim(img1, img2, window_size=11, size_average=True, full=False, y_channel=False):
+    assert img1.shape == img2.shape, f'Image shapes are different: {img1.shape}, {img2.shape}.'
+
     _, c, h, w = img1.size()
 
     real_size = min(window_size, h, w)
@@ -128,6 +132,8 @@ def ssim(img1, img2, window_size=11, size_average=True, full=False, y_channel=Fa
 
 
 def msssim(img1, img2, window_size=11, size_average=True, y_channel=False):
+    assert img1.shape == img2.shape, f'Image shapes are different: {img1.shape}, {img2.shape}.'
+
     weights = torch.Tensor([0.0448, 0.2856, 0.3001, 0.2363, 0.1333])
 
     if y_channel:
@@ -203,6 +209,8 @@ def blocking_effect_factor(im):
 
 
 def psnrb(input, target, y_channel=False, max_val=1.):
+    assert input.shape == target.shape, f'Image shapes are different: {input.shape}, {target.shape}.'
+
     if y_channel:
         input = rgb2ycbcr(input, y_only=True)
         target = rgb2ycbcr(target, y_only=True)
