@@ -88,7 +88,7 @@ class SSIM(nn.Module):
         self.channel = 1
         self.window = create_window(window_size, self.channel)
 
-    def forward(self, img1, img2):
+    def forward(self, img1, img2, y_channel=False):
         c = img1.size(1)
 
         if c == self.channel and self.window.data.type() == img1.data.type():
@@ -102,11 +102,15 @@ class SSIM(nn.Module):
 
             self.window = window
             self.channel = c
+        
+        if y_channel:
+            img1 = rgb2ycbcr(img1, y_only=True)
+            img2 = rgb2ycbcr(img2, y_only=True)
 
         return _ssim(img1, img2, window, self.window_size, c, self.size_average)
 
 
-def ssim(img1, img2, window_size=11, size_average=True, full=False):
+def ssim(img1, img2, window_size=11, size_average=True, full=False, y_channel=False):
     _, c, h, w = img1.size()
 
     real_size = min(window_size, h, w)
@@ -115,6 +119,10 @@ def ssim(img1, img2, window_size=11, size_average=True, full=False):
     if img1.is_cuda:
         window = window.cuda(img1.get_device())
     window = window.type_as(img1)
+
+    if y_channel:
+        img1 = rgb2ycbcr(img1, y_only=True)
+        img2 = rgb2ycbcr(img2, y_only=True)
 
     return _ssim(img1, img2, window, real_size, c, size_average, full)
 
@@ -190,13 +198,17 @@ def blocking_effect_factor(im):
     return bef
 
 
-def psnrb(input, target, max_val=1.):
+def psnrb(input, target, y_channel=False, max_val=1.):
+    if y_channel:
+        input = rgb2ycbcr(input, y_only=True)
+        target = rgb2ycbcr(target, y_only=True)
+
     total = 0
     for c in range(input.shape[1]):
         mse = F.mse_loss(input[:, c:c+1, :, :], target[:, c:c+1, :, :], reduction='none')
         bef = blocking_effect_factor(input[:, c:c+1, :, :])
 
         mse = mse.view(mse.shape[0], -1).mean(1)
-        total += 10 * torch.log10(max_val / (mse + bef))
+        total += 10. * torch.log10(max_val / (mse + bef))
 
     return total / input.shape[1]
