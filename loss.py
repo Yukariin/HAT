@@ -7,6 +7,19 @@ import torch.nn.functional as F
 from torch.autograd import Variable
 
 
+def rgb2ycbcr(x, y_only=False):
+    if y_only:
+        w = torch.tensor([[65.481], [128.553], [24.966]]).to(x)
+        out = torch.matmul(x.permute(0, 2, 3, 1), w).permute(0, 3, 1, 2) + 16.0
+    else:
+        w = torch.tensor([[65.481, -37.797, 112.0], [128.553, -74.203, -93.786], [24.966, 112.0, -18.214]]).to(x)
+        b = torch.tensor([16, 128, 128]).view(1, 3, 1, 1).to(x)
+        out = torch.matmul(x.permute(0, 2, 3, 1), w).permute(0, 3, 1, 2) + b
+    
+    out = out / 255.
+    return out
+
+
 class CharbonnierLoss(nn.Module):
     """Charbonnier Loss (L1)"""
 
@@ -133,9 +146,15 @@ def msssim(img1, img2, window_size=11, size_average=True):
     return output
 
 
-def psnr(input, target, max_val=1.):
+def psnr(input, target, y_channel=False, max_val=1.):
+    assert input.shape == target.shape, f'Image shapes are different: {input.shape}, {target.shape}.'
+
+    if y_channel:
+        input = rgb2ycbcr(input, y_only=True)
+        target = rgb2ycbcr(target, y_only=True)
+
     mse = F.mse_loss(input, target)
-    psnr = 10 * torch.log10(max_val / mse)
+    psnr = 10. * torch.log10(max_val / mse)
 
     return psnr
 
