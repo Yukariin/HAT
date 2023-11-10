@@ -127,8 +127,12 @@ def ssim(img1, img2, window_size=11, size_average=True, full=False, y_channel=Fa
     return _ssim(img1, img2, window, real_size, c, size_average, full)
 
 
-def msssim(img1, img2, window_size=11, size_average=True):
+def msssim(img1, img2, window_size=11, size_average=True, y_channel=False):
     weights = torch.Tensor([0.0448, 0.2856, 0.3001, 0.2363, 0.1333])
+
+    if y_channel:
+        img1 = rgb2ycbcr(img1, y_only=True)
+        img2 = rgb2ycbcr(img2, y_only=True)
 
     if img1.is_cuda:
         weights = weights.cuda(img1.get_device())
